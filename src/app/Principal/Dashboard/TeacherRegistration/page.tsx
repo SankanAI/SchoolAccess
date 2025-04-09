@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,11 +32,6 @@ import * as XLSX from 'xlsx';
 import { v4 as uuidv4 } from 'uuid';
 import { Eye, EyeOff } from 'lucide-react';
 
-interface TeacherManagementProps {
-  principalId: string;
-  schoolId: string;
-}
-
 interface Teacher {
   id: string;
   teacher_id: string;
@@ -65,7 +61,13 @@ interface EditHistory {
   };
 }
 
-export default function TeacherManagement({ principalId, schoolId }: TeacherManagementProps) {
+export default function TeacherRegistrationPage() {
+  // State to hold the principal and school IDs
+  const [principalId, setPrincipalId] = useState<string>("");
+  const [schoolId, setSchoolId] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // States for teacher management
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
@@ -75,6 +77,44 @@ export default function TeacherManagement({ principalId, schoolId }: TeacherMana
   const [showPassword, setShowPassword] = useState<{[key: string]: boolean}>({});
   const supabase = createClientComponentClient();
 
+  // Get principal and school IDs on component mount
+  useEffect(() => {
+    async function fetchPrincipalData() {
+      try {
+        // Get the current user session
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          console.error("No session found");
+          return;
+        }
+        
+        // Fetch principal details
+        const { data, error } = await supabase
+          .from('principals')
+          .select('id, school_id')
+          .eq('user_id', session.user.id)
+          .single();
+        
+        if (error) {
+          console.error("Error fetching principal data:", error);
+          return;
+        }
+        
+        if (data) {
+          setPrincipalId(data.id);
+          setSchoolId(data.school_id);
+        }
+      } catch (err) {
+        console.error("Error:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    
+    fetchPrincipalData();
+  }, [supabase]);
+
   const generateTeacherId = () => {
     return `TCH${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
   };
@@ -83,46 +123,61 @@ export default function TeacherManagement({ principalId, schoolId }: TeacherMana
     return Math.random().toString(36).substr(2, 8);
   };
 
+  const fetchTeachers = useCallback(async () => {
+    if (!principalId || !schoolId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('teachers')
+        .select('*')
+        .eq('school_id', schoolId)
+        .eq('principle_id', principalId);
+
+      if (error) {
+        alert("Error, Failed to fetch the Teachers");
+        console.error("Fetch error:", error);
+        return;
+      }
+
+      setTeachers(data || []);
+      setIsFinalSubmitted(data?.[0]?.is_final_submitted || false);
+    } catch (err) {
+      console.error("Connection error:", err);
+      alert("Network connection error. Please check your internet connection and try again.");
+    }
+  }, [principalId, schoolId, supabase]);
+
   useEffect(() => {
-    fetchTeachers();
-  }, []);
+    if (principalId && schoolId) {
+      fetchTeachers();
+    }
+  }, [fetchTeachers, principalId, schoolId]);
+
+  const fetchTeacherHistory = useCallback(async (teacherId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('teacher_edit_history')
+        .select('*')
+        .eq('teacher_id', teacherId)
+        .order('edited_at', { ascending: false });
+
+      if (error) {
+        alert("Failed to fetch edit history");
+        return;
+      }
+
+      setEditHistory(data || []);
+    } catch (err) {
+      console.error("Connection error:", err);
+      alert("Network connection error when fetching history.");
+    }
+  }, [supabase]);
 
   useEffect(() => {
     if (selectedTeacherHistory) {
       fetchTeacherHistory(selectedTeacherHistory);
     }
-  }, [selectedTeacherHistory]);
-
-  const fetchTeachers = async () => {
-    const { data, error } = await supabase
-      .from('teachers')
-      .select('*')
-      .eq('school_id', schoolId)
-      .eq('principle_id', principalId);
-
-    if (error) {
-      alert("Error, Failed to fetch the Teachers");
-      return;
-    }
-
-    setTeachers(data || []);
-    setIsFinalSubmitted(data?.[0]?.is_final_submitted || false);
-  };
-
-  const fetchTeacherHistory = async (teacherId: string) => {
-    const { data, error } = await supabase
-      .from('teacher_edit_history')
-      .select('*')
-      .eq('teacher_id', teacherId)
-      .order('edited_at', { ascending: false });
-
-    if (error) {
-      alert("Failed to fetch edit history");
-      return;
-    }
-
-    setEditHistory(data || []);
-  };
+  }, [selectedTeacherHistory, fetchTeacherHistory]);
 
   const recordEditHistory = async (teacherId: string, beforeData: Partial<Teacher>, afterData: Partial<Teacher>) => {
     const changes = {
@@ -279,8 +334,6 @@ export default function TeacherManagement({ principalId, schoolId }: TeacherMana
     alert("Teachers list submitted successfully");
   };
 
-  
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
   };
@@ -291,6 +344,14 @@ export default function TeacherManagement({ principalId, schoolId }: TeacherMana
       [teacherId]: !prev[teacherId]
     }));
   };
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!principalId || !schoolId) {
+    return <div>Not authorized or principal data not found</div>;
+  }
 
   return (
     <Card className="w-[95%] ml-[2.5%] mt-[5vh]">
@@ -453,48 +514,48 @@ export default function TeacherManagement({ principalId, schoolId }: TeacherMana
                       Edit
                     </Button>
                     <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleRemove(teacher.id)}
-                        disabled={isFinalSubmitted}
-                      >
-                        Remove
-                      </Button>
-                      <Sheet>
-                        <SheetTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSelectedTeacherHistory(teacher.id)}
-                          >
-                            History
-                          </Button>
-                        </SheetTrigger>
-                        <SheetContent>
-                          <SheetHeader>
-                            <SheetTitle>Edit History - {teacher.name}</SheetTitle>
-                          </SheetHeader>
-                          <div className="mt-4 space-y-4">
-                            {editHistory.map((history) => (
-                              <div key={history.id} className="border-b pb-2">
-                                <p className="text-sm text-gray-500">
-                                  {formatDate(history.edited_at)}
-                                </p>
-                                <p className="mt-1 text-sm">
-                                  Changes: {JSON.stringify(history.changes)}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        </SheetContent>
-                      </Sheet>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    );
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleRemove(teacher.id)}
+                      disabled={isFinalSubmitted}
+                    >
+                      Remove
+                    </Button>
+                    <Sheet>
+                      <SheetTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedTeacherHistory(teacher.id)}
+                        >
+                          History
+                        </Button>
+                      </SheetTrigger>
+                      <SheetContent>
+                        <SheetHeader>
+                          <SheetTitle>Edit History - {teacher.name}</SheetTitle>
+                        </SheetHeader>
+                        <div className="mt-4 space-y-4">
+                          {editHistory.map((history) => (
+                            <div key={history.id} className="border-b pb-2">
+                              <p className="text-sm text-gray-500">
+                                {formatDate(history.edited_at)}
+                              </p>
+                              <p className="mt-1 text-sm">
+                                Changes: {JSON.stringify(history.changes)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </SheetContent>
+                    </Sheet>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
 }
