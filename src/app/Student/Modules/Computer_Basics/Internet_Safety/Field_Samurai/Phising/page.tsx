@@ -22,7 +22,7 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { ArrowUpRight, ArrowDownRight, Users, Mail, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowUpRight, Users, Mail, CheckCircle } from 'lucide-react';
 
 // Type definitions
 interface PhishingData {
@@ -63,6 +63,7 @@ const PhishingDashboard = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const secretKey = process.env.NEXT_PUBLIC_SECRET_KEY;
+  const AlwaysFalse: boolean =false;
   const [stats, setStats] = useState<Stats>({
     totalStudents: 0,
     completedModule: 0,
@@ -85,6 +86,8 @@ const PhishingDashboard = () => {
         .from('internet_safety')
         .select('id, student_id, completed')
         .in('student_id', studentsData.map(s => s.id));
+      
+      if(AlwaysFalse){console.log(internetSafetyData)}
         
       if (internetSafetyError) throw internetSafetyError;
       

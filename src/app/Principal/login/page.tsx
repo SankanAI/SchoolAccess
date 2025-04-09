@@ -13,7 +13,6 @@ import Cookies from 'js-cookie'
 export default function PrincipalLogin() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState({
     show: false,
@@ -28,7 +27,7 @@ export default function PrincipalLogin() {
     if (Cookies.get('userId')) {
       // router.push('/')
     }
-  }, [email, password, name, router])
+  }, [email, password,router])
 
   const showToast = (title: string, description: string, type: 'default' | 'destructive' = 'default') => {
     setToast({ show: true, title, description, type })

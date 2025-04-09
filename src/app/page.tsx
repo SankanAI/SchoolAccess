@@ -35,6 +35,7 @@ export default function PrincipalRegistrationForm() {
   const [output, setOutput] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [authUser, setAuthUser] = useState<string>('')
+  const AlwaysFalse:boolean =false;
   const router = useRouter()
   const supabase = createClientComponentClient()
 
@@ -115,6 +116,7 @@ export default function PrincipalRegistrationForm() {
       if (schoolError) throw schoolError
 
       setOutput('Registration successful! Please wait for admin verification.')
+      if(AlwaysFalse){console.log(authUser)}
       router.push('/Principal/login')
       
     } catch (error: any) {

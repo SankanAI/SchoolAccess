@@ -38,6 +38,20 @@ interface KeyboardProgress {
   updated_at: string;
 }
 
+
+interface LevelDataItem {
+  name: string;
+  avgScore: number;
+  studentsCompleted: number;
+}
+
+interface TimeDataItem {
+  name: string;
+  "Level 1": number | null;
+  "Level 2": number | null;
+  "Level 3": number | null;
+}
+
 interface StudentWithProgress extends Student {
   progress?: KeyboardProgress;
 }
@@ -58,8 +72,8 @@ export default function KeyboardDashboard() {
       level3: 0
     }
   });
-  const [levelData, setLevelData] = useState<any[]>([]);
-  const [timeData, setTimeData] = useState<any[]>([]);
+  const [levelData, setLevelData] = useState<LevelDataItem[]>([]);
+const [timeData, setTimeData] = useState<TimeDataItem[]>([]);
 
   const decryptData = (encryptedText: string): string => {
     try {
@@ -282,7 +296,7 @@ export default function KeyboardDashboard() {
     <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
       <div className="flex flex-col space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">Keyboard Activity Dashboard</h1>
-        <p className="text-muted-foreground">Monitor your students' keyboard skills across all levels</p>
+        <p className="text-muted-foreground">{"Monitor your students' keyboard skills across all levels"}</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

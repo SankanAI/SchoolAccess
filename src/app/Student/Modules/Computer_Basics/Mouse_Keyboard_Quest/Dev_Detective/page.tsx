@@ -121,7 +121,7 @@ const DevDetectiveTeacher = () => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Colors for pie chart
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+  // const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
   // Decryption function
   const decryptData = (encryptedText: string): string => {

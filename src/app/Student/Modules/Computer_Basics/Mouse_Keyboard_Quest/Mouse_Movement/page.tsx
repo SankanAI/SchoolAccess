@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Loader2, UserCheck, UserX, MousePointer, MousePointerClick, Maximize2, Menu } from 'lucide-react';
+import { Loader2, UserCheck, MousePointer, MousePointerClick, Maximize2, Menu } from 'lucide-react';
 import Cookies from "js-cookie";
 import { format } from 'date-fns';
 
@@ -41,6 +41,10 @@ interface MouseMovementProgress {
 interface StudentWithProgress extends Student {
   progress?: MouseMovementProgress;
 }
+interface TaskCompletionData {
+  name: string;
+  completed: number;
+}
 
 export default function MouseMovementDashboard() {
   const secretKey = process.env.NEXT_PUBLIC_SECRET_KEY;
@@ -53,7 +57,7 @@ export default function MouseMovementDashboard() {
     inProgress: 0,
     notStarted: 0,
   });
-  const [chartData, setChartData] = useState<any[]>([]);
+  const [chartData, setChartData] = useState<TaskCompletionData[]>([]);
 
   const decryptData = (encryptedText: string): string => {
     try {
@@ -203,7 +207,7 @@ export default function MouseMovementDashboard() {
     <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
       <div className="flex flex-col space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">Mouse Movement Dashboard</h1>
-        <p className="text-muted-foreground">Track your students' progress with mouse movement exercises</p>
+        <p className="text-muted-foreground">{"Track your students' progress with mouse movement exercises"}</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

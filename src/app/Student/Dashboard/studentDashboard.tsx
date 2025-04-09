@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowUpWideNarrow, AudioWaveform, Blocks, BookHeadphones, Component, FileStack, Gamepad2, LucideIcon, PawPrint, Puzzle, Repeat2, Key, Lock, Bug, Shield, FileQuestion, FileSearch, FileCog, FileCode, Router } from 'lucide-react';
+import { ArrowUpWideNarrow, AudioWaveform, Blocks, BookHeadphones, Component, FileStack, Gamepad2, PawPrint, Puzzle, Repeat2, Key, Lock, Bug, Shield, FileQuestion, FileSearch, FileCog, FileCode } from 'lucide-react';
 import Cookies from 'js-cookie';
 import { 
   BarChart,
@@ -80,7 +80,6 @@ interface SubModule {
 interface GenericModuleGridProps {
   modules: SubModule[];
   onModuleSelect: (link: string) => void;
-  className?: string;
 }
 
 const subModules: SubModule[][] = [
@@ -152,8 +151,7 @@ const subModules: SubModule[][] = [
 
 const GenericModuleGrid = ({ 
   modules, 
-  onModuleSelect,
-  className = ''
+  onModuleSelect
 }: GenericModuleGridProps) => {
   return (
     <div className={`w-full max-w-4xl p-6`}>
@@ -461,7 +459,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ teacherId }) => {
                     <Alert>
                       <AlertTriangle className="h-4 w-4" />
                       <AlertDescription>
-                        {stats.computerBasics.total - stats.computerBasics.completed} students haven't completed the basic course
+                        {stats.computerBasics.total - stats.computerBasics.completed} {"students haven't completed the basic course"}
                       </AlertDescription>
                     </Alert>
                   )}

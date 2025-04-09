@@ -44,6 +44,15 @@ interface Student {
   is_final_submitted: boolean;
 }
 
+interface StudentExcelRow {
+  'Name': string;
+  'Roll No': string;
+  'Class': string;
+  'Section': string;
+  'Parent Email': string;
+  'Parent Phone': string;
+}
+
 export default function StudentManagement({ principalId, schoolId, teacherId }: StudentManagementProps) {
   const [students, setStudents] = useState<Student[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -143,9 +152,9 @@ export default function StudentManagement({ principalId, schoolId, teacherId }: 
       const data = new Uint8Array(e.target?.result as ArrayBuffer);
       const workbook = XLSX.read(data, { type: 'array' });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      const jsonData = XLSX.utils.sheet_to_json(worksheet) as StudentExcelRow[];
 
-      const studentsToUpload = jsonData.map((row: any) => ({
+      const studentsToUpload = jsonData.map((row: StudentExcelRow) => ({
         id: uuidv4(),
         student_id: generateStudentId(),
         name: row['Name'],

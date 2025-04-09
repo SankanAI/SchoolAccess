@@ -504,7 +504,7 @@ const AutomatedFileManagementDashboard = () => {
                 <CardHeader>
                   <CardTitle>Student Progress Details</CardTitle>
                   <CardDescription>
-                    Detailed view of each student's automated file management module progress
+                   {" Detailed view of each student's automated file management module progress"}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
