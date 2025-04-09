@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,7 +64,11 @@ export default function StudentManagement({ principalId, schoolId, teacherId }: 
     return `STU${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
   };
 
-  const fetchStudents = useCallback(async () => {
+  useEffect(() => {
+    fetchStudents();
+  }, []);
+
+  const fetchStudents = async () => {
     const { data, error } = await supabase
       .from('students')
       .select('*')
@@ -79,11 +83,7 @@ export default function StudentManagement({ principalId, schoolId, teacherId }: 
 
     setStudents(data || []);
     setIsFinalSubmitted(data?.[0]?.is_final_submitted || false);
-  }, [principalId, schoolId, teacherId, supabase]);
-
-  useEffect(() => {
-    fetchStudents();
-  }, [fetchStudents]);
+  };
 
   const recordEditHistory = async (studentId: string, beforeData: Partial<Student>, afterData: Partial<Student>) => {
     const { error } = await supabase
@@ -152,7 +152,7 @@ export default function StudentManagement({ principalId, schoolId, teacherId }: 
       const data = new Uint8Array(e.target?.result as ArrayBuffer);
       const workbook = XLSX.read(data, { type: 'array' });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet) as StudentExcelRow[];
+      const jsonData = XLSX.utils.sheet_to_json<StudentExcelRow>(worksheet);
 
       const studentsToUpload = jsonData.map((row: StudentExcelRow) => ({
         id: uuidv4(),
