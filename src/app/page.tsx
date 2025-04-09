@@ -119,7 +119,7 @@ export default function PrincipalRegistrationForm() {
       if(AlwaysFalse){console.log(authUser)}
       router.push('/Principal/login')
       
-    } catch (error: any) {
+    } catch (error) {
       console.log('Registration error:', error)
       setOutput(error.message || 'An error occurred during registration')
     } finally {
