@@ -121,7 +121,6 @@ export default function PrincipalRegistrationForm() {
       
     } catch (error) {
       console.log('Registration error:', error)
-      setOutput(error.message || 'An error occurred during registration')
     } finally {
       setLoading(false)
     }
