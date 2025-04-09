@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,11 +64,7 @@ export default function StudentManagement({ principalId, schoolId, teacherId }: 
     return `STU${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
   };
 
-  useEffect(() => {
-    fetchStudents();
-  }, []);
-
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     const { data, error } = await supabase
       .from('students')
       .select('*')
@@ -83,7 +79,11 @@ export default function StudentManagement({ principalId, schoolId, teacherId }: 
 
     setStudents(data || []);
     setIsFinalSubmitted(data?.[0]?.is_final_submitted || false);
-  };
+  }, [principalId, schoolId, teacherId, supabase]);
+
+  useEffect(() => {
+    fetchStudents();
+  }, [fetchStudents]);
 
   const recordEditHistory = async (studentId: string, beforeData: Partial<Student>, afterData: Partial<Student>) => {
     const { error } = await supabase
