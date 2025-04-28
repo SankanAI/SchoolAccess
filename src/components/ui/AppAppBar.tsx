@@ -56,12 +56,6 @@ export default function AppAppBar() {
             </div>
 
             <div className="flex items-center space-x-2">
-              <Link
-                href="/Authentication/login"
-                className="text-sm text-white hover:text-[#22c55e] px-3 py-2 rounded-md"
-              >
-                Join
-              </Link>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="text-sm bg-black text-white px-4 py-2 rounded-md">
@@ -87,7 +81,7 @@ export default function AppAppBar() {
               onClick={toggleMenu}
               className="text-black hover:text-[#4ade80]"
             >
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              {isMenuOpen ? <X className='text-white' size={24} /> : <Menu className='text-white' size={24} />}
             </button>
           </div>
         </nav>
@@ -121,23 +115,6 @@ export default function AppAppBar() {
                       {item.label}
                     </Link>
                   ))}
-                </div>
-                
-                <div className="border-t pt-4 space-y-4">
-                  <Link
-                    href="/Authentication/login"
-                    onClick={toggleMenu}
-                    className="block text-lg text-black hover:text-black"
-                  >
-                    Sign In
-                  </Link>
-                  <Link
-                    href="/Authentication/Signup"
-                    onClick={toggleMenu}
-                    className="block text-lg bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 transition-colors text-center"
-                  >
-                    Sign Up
-                  </Link>
                 </div>
               </div>
             </div>

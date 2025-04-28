@@ -27,7 +27,7 @@ export default function PrincipalLogin() {
     if (Cookies.get('userId')) {
       // router.push('/')
     }
-  }, [email, password,router])
+  }, [email, password, router])
 
   const showToast = (title: string, description: string, type: 'default' | 'destructive' = 'default') => {
     setToast({ show: true, title, description, type })
@@ -118,39 +118,39 @@ export default function PrincipalLogin() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-lg mt-[-5vh]">
+    <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
+      <Card className="w-[350px] max-w-lg mt-[-5vh] border-gray-800 bg-gray-900">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold tracking-tight">Principal Login</CardTitle>
-          <CardDescription className="text-muted-foreground">
+          <CardTitle className="text-2xl font-bold tracking-tight text-white">Principal Login</CardTitle>
+          <CardDescription className="text-gray-400">
             Enter your credentials to access your account
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email" className="text-gray-300">Email</Label>
             <Input
               id="email"
               type="email"
               placeholder="m@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="bg-background"
+              className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password" className="text-gray-300">Password</Label>
             <Input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="bg-background"
+              className="bg-gray-800 border-gray-700 text-white"
             />
           </div>
           <Button
             onClick={handlePrincipalLogin}
-            className="w-full"
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
             disabled={loading}
           >
             {loading ? 'Signing in...' : 'Sign In'}
@@ -161,10 +161,16 @@ export default function PrincipalLogin() {
       {toast.show && (
         <Alert
           variant={toast.type === 'destructive' ? 'destructive' : 'default'}
-          className="fixed top-4 right-4 w-96 animate-in fade-in slide-in-from-top-2"
+          className={`fixed top-4 right-4 w-96 animate-in fade-in slide-in-from-top-2 ${
+            toast.type === 'destructive' 
+              ? 'border-red-900 bg-red-950 text-red-50' 
+              : 'border-green-900 bg-green-950 text-green-50'
+          }`}
         >
-          <AlertTitle>{toast.title}</AlertTitle>
-          <AlertDescription>{toast.description}</AlertDescription>
+          <AlertTitle className="text-white">{toast.title}</AlertTitle>
+          <AlertDescription className={toast.type === 'destructive' ? 'text-red-200' : 'text-green-200'}>
+            {toast.description}
+          </AlertDescription>
         </Alert>
       )}
     </div>

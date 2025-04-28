@@ -151,7 +151,7 @@ export default function PrincipalRegistrationForm() {
 
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 mt-4">
                 <TabsContent value="principal">
-                  <div className="space-y-4 w-[75%] ml-[12.5%]">
+                  <div className="space-y-4 w-[100%]">
                     <div className="space-y-2">
                       <Label htmlFor="name" className="text-gray-300">Full Name</Label>
                       <Input
