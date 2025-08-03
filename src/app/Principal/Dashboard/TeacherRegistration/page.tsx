@@ -31,6 +31,8 @@ import {
 import * as XLSX from 'xlsx';
 import { v4 as uuidv4 } from 'uuid';
 import { Eye, EyeOff } from 'lucide-react';
+import Cookies from 'js-cookie';
+import { useSearchParams } from 'next/navigation';
 
 interface Teacher {
   id: string;
@@ -76,44 +78,87 @@ export default function TeacherRegistrationPage() {
   const [selectedTeacherHistory, setSelectedTeacherHistory] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState<{[key: string]: boolean}>({});
   const supabase = createClientComponentClient();
+  const searchParams = useSearchParams();
 
   // Get principal and school IDs on component mount
   useEffect(() => {
     async function fetchPrincipalData() {
       try {
-        // Get the current user session
-        const { data: { session } } = await supabase.auth.getSession();
+        // First try to get from URL parameters (from login redirect)
+        const urlPrincipalId = searchParams.get('principalId');
+        const urlSchoolId = searchParams.get('schoolId');
         
-        if (!session) {
-          console.error("No session found");
-          return;
+        // Also try to get from cookies (if user refreshes page)
+        const cookiePrincipalId = Cookies.get('principalId');
+        const cookieUserId = Cookies.get('userId');
+        
+        let finalPrincipalId = urlPrincipalId || cookiePrincipalId;
+        let finalSchoolId = urlSchoolId;
+        
+        // If we don't have school ID from URL, try to fetch it from database using principal ID
+        if (finalPrincipalId && !finalSchoolId) {
+          const { data, error } = await supabase
+            .from('schools')
+            .select('id')
+            .eq('principle_id', finalPrincipalId)
+            .single();
+          
+          if (!error && data) {
+            finalSchoolId = data.id;
+          }
         }
         
-        // Fetch principal details
-        const { data, error } = await supabase
-          .from('principals')
-          .select('id, school_id')
-          .eq('user_id', session.user.id)
-          .single();
-        
-        if (error) {
-          console.error("Error fetching principal data:", error);
-          return;
+        // If we still don't have principal ID, try to get it from user ID
+        if (!finalPrincipalId && cookieUserId) {
+          const { data, error } = await supabase
+            .from('principles')
+            .select('id')
+            .eq('user_id', cookieUserId)
+            .single();
+          
+          if (!error && data) {
+            finalPrincipalId = data.id;
+            
+            // Also get school ID
+            const { data: schoolData, error: schoolError } = await supabase
+              .from('schools')
+              .select('id')
+              .eq('principle_id', data.id)
+              .single();
+            
+            if (!schoolError && schoolData) {
+              finalSchoolId = schoolData.id;
+            }
+          }
         }
         
-        if (data) {
-          setPrincipalId(data.id);
-          setSchoolId(data.school_id);
+        if (finalPrincipalId && finalSchoolId) {
+          setPrincipalId(finalPrincipalId);
+          setSchoolId(finalSchoolId);
+          
+          // Store in cookies for future page refreshes
+          Cookies.set('principalId', finalPrincipalId, {
+            expires: 7,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict'
+          });
+          Cookies.set('schoolId', finalSchoolId, {
+            expires: 7,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict'
+          });
+        } else {
+          console.log("Could not determine principal or school ID");
         }
       } catch (err) {
-        console.error("Error:", err);
+        console.log("Error:", err);
       } finally {
         setIsLoading(false);
       }
     }
     
     fetchPrincipalData();
-  }, [supabase]);
+  }, [supabase, searchParams]);
 
   const generateTeacherId = () => {
     return `TCH${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
@@ -135,14 +180,14 @@ export default function TeacherRegistrationPage() {
 
       if (error) {
         alert("Error, Failed to fetch the Teachers");
-        console.error("Fetch error:", error);
+        console.log("Fetch error:", error);
         return;
       }
 
       setTeachers(data || []);
       setIsFinalSubmitted(data?.[0]?.is_final_submitted || false);
     } catch (err) {
-      console.error("Connection error:", err);
+      console.log("Connection error:", err);
       alert("Network connection error. Please check your internet connection and try again.");
     }
   }, [principalId, schoolId, supabase]);
@@ -168,7 +213,7 @@ export default function TeacherRegistrationPage() {
 
       setEditHistory(data || []);
     } catch (err) {
-      console.error("Connection error:", err);
+      console.log("Connection error:", err);
       alert("Network connection error when fetching history.");
     }
   }, [supabase]);
@@ -194,7 +239,7 @@ export default function TeacherRegistrationPage() {
       });
 
     if (error) {
-      console.error('Failed to record edit history:', error);
+      console.log('Failed to record edit history:', error);
     }
   };
 
@@ -350,7 +395,15 @@ export default function TeacherRegistrationPage() {
   }
 
   if (!principalId || !schoolId) {
-    return <div>Not authorized or principal data not found</div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <h2 className="text-xl font-bold mb-4">Authorization Required</h2>
+        <p>Principal or school data not found. Please log in again.</p>
+        <Button onClick={() => window.location.href = '/Principal/login'} className="mt-4">
+          Go to Login
+        </Button>
+      </div>
+    );
   }
 
   return (

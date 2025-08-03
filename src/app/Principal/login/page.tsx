@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import Cookies from 'js-cookie'
+import bcrypt from 'bcryptjs'
 
 export default function PrincipalLogin() {
   const [email, setEmail] = useState('')
@@ -27,7 +28,7 @@ export default function PrincipalLogin() {
     if (Cookies.get('userId')) {
       // router.push('/')
     }
-  }, [email, password, router])
+  }, [])
 
   const showToast = (title: string, description: string, type: 'default' | 'destructive' = 'default') => {
     setToast({ show: true, title, description, type })
@@ -45,62 +46,63 @@ export default function PrincipalLogin() {
         return
       }
 
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      })
-
-      if (authError) {
-        showToast('Login Error', authError.message, 'destructive')
-        return
-      }
-
-      if (!authData.user) {
-        showToast('Login Error', 'No user found', 'destructive')
-        return
-      }
-
+      // Query the principals table directly using email
       const { data: principalData, error: principalError } = await supabase
-        .from('principles')
+        .from('principles') // Note: keeping your table name 'principles'
         .select('*')
-        .eq('user_id', authData.user.id)
+        .eq('email', email)
         .single()
 
-      if (principalError) {
-        showToast('Error', 'Principal account not found', 'destructive')
-        await supabase.auth.signOut()
+      if (principalError || !principalData) {
+        showToast('Login Error', 'Invalid email or password', 'destructive')
         return
       }
 
+      // Compare the entered password with the hashed password
+      const isPasswordValid = await bcrypt.compare(password, principalData.password)
+      
+      if (!isPasswordValid) {
+        showToast('Login Error', 'Invalid email or password', 'destructive')
+        return
+      }
+
+      if (principalData.verified !== true) {
+        showToast('Account Not Verified', 'Your account is pending verification. Please check your email or contact support.', 'destructive')
+        return
+      }
+
+      // Check if account is verified
       if (!principalData.verified) {
         showToast('Account Not Verified', 'Your account is pending verification. Please check your email or contact support.', 'destructive')
-        await supabase.auth.signOut()
         return
       }
 
+      // Fetch school data associated with this principal
       const { data: schoolData, error: schoolError } = await supabase
         .from('schools')
         .select('*')
         .eq('principle_id', principalData.id)
         .single()
 
-      if (schoolError) {
-        showToast('Error', 'Could not fetch school data', 'destructive')
-        return
-      }
-
-      if (!schoolData) {
+      if (schoolError || !schoolData) {
         showToast('Error', 'No school associated with this principal', 'destructive')
         return
       }
 
-      Cookies.set('userId', authData.user.id, {
+      // Set cookies with principal data
+      Cookies.set('userId', principalData.user_id || principalData.id, {
         expires: 7,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict'
       })
 
-      Cookies.set('userEmail', authData.user.email || '', {
+      Cookies.set('userEmail', principalData.email, {
+        expires: 7,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict'
+      })
+
+      Cookies.set('principalId', principalData.id, {
         expires: 7,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict'

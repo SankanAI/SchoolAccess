@@ -1,16 +1,17 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useForm } from "react-hook-form"
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
-import { useRouter } from 'next/navigation'
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { useRouter } from 'next/navigation';
+import bcrypt from 'bcryptjs';
 
 interface PrincipalFormData {
   name: string;
@@ -32,12 +33,12 @@ interface PrincipalFormData {
 }
 
 export default function PrincipalRegistrationForm() {
-  const [output, setOutput] = useState<string>('')
-  const [loading, setLoading] = useState(false)
-  const [authUser, setAuthUser] = useState<string>('')
-  const AlwaysFalse:boolean =false;
-  const router = useRouter()
-  const supabase = createClientComponentClient()
+  const [output, setOutput] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [authUser, setAuthUser] = useState<string>('');
+  const AlwaysFalse: boolean = false;
+  const router = useRouter();
+  const supabase = createClientComponentClient();
 
   const {
     register,
@@ -64,44 +65,48 @@ export default function PrincipalRegistrationForm() {
       contactEmail: "",
       contactPhone: "",
     }
-  })
+  });
 
   const onSubmit = async (data: PrincipalFormData) => {
     try {
-      setLoading(true)
-      
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: {
-            name: data.name,
-            role: 'principal'
-          }
-        }
-      })
+      setLoading(true);
 
-      if (authError) throw authError
+      // Hash the password
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(data.password, salt);
 
-      if (!authData.user) {
-        throw new Error("User data is not available.")
-      }
+      // const { data: authData, error: authError } = await supabase.auth.signUp({
+      //   email: data.email,
+      //   password: hashedPassword,
+      //   options: {
+      //     data: {
+      //       name: data.name,
+      //       role: 'principal'
+      //     }
+      //   }
+      // });
 
-      setAuthUser(authData.user.id)
+      // if (authError) throw authError;
+
+      // if (!authData.user) {
+      //   throw new Error("User data is not available.");
+      // }
+
+      // setAuthUser(authData.user.id);
 
       const { data: principalData, error: principalError } = await supabase
         .from('principles')
         .insert({
-          user_id: authData.user.id,
           name: data.name,
           email: data.email,
           phone: data.phone,
+          password: hashedPassword,
           verified: false
         })
         .select('id')
-        .single()
+        .single();
 
-      if (principalError) throw principalError
+      if (principalError) throw principalError;
 
       const { error: schoolError } = await supabase
         .from('schools')
@@ -111,20 +116,21 @@ export default function PrincipalRegistrationForm() {
           school_type: data.schoolType,
           board: data.board,
           registration_number: data.registrationNumber
-        })
+        });
 
-      if (schoolError) throw schoolError
+      if (schoolError) throw schoolError;
 
-      setOutput('Registration successful! Please wait for admin verification.')
-      if(AlwaysFalse){console.log(authUser)}
-      router.push('/Principal/login')
-      
+      setOutput('Registration successful! Please wait for admin verification.');
+      if (AlwaysFalse) { console.log("Successful"); }
+      router.push('/Principal/login');
+
     } catch (error) {
-      console.log('Registration error:', error)
+      console.log('Registration error:', error);
+      setOutput(`Registration failed`);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-black text-gray-200 flex items-center justify-center p-2">
@@ -222,6 +228,10 @@ export default function PrincipalRegistrationForm() {
                           minLength: {
                             value: 8,
                             message: "Password must be at least 8 characters"
+                          },
+                          pattern: {
+                            value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+                            message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
                           }
                         })}
                         className="bg-gray-800 border-gray-700 text-white placeholder-gray-500"
@@ -301,9 +311,9 @@ export default function PrincipalRegistrationForm() {
                   </div>
                 </TabsContent>
 
-                <Button 
-                  type="submit" 
-                  className="w-full bg-indigo-700 hover:bg-indigo-600 text-white" 
+                <Button
+                  type="submit"
+                  className="w-full bg-indigo-700 hover:bg-indigo-600 text-white"
                   disabled={loading}
                 >
                   {loading ? 'Processing...' : 'Complete Registration'}
@@ -314,5 +324,5 @@ export default function PrincipalRegistrationForm() {
         </Card>
       </div>
     </div>
-  )
+  );
 }
