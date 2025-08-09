@@ -45,13 +45,14 @@ interface Student {
   is_final_submitted: boolean;
 }
 
-interface StudentExcelRow {
-  'Name': string;
-  'Roll No': string;
-  'Class': string;
-  'Section': string;
-  'Parent Email': string;
-  'Parent Phone': string;
+interface ExcelRowData {
+  Name?: string;
+  'Roll No'?: string;
+  Class?: string;
+  Section?: string;
+  'Parent Email'?: string;
+  'Parent Phone'?: string;
+  [key: string]: string | undefined;
 }
 
 export default function StudentManagement({ principalId, schoolId, teacherId }: StudentManagementProps) {
@@ -229,7 +230,7 @@ export default function StudentManagement({ principalId, schoolId, teacherId }: 
         );
         
         // Update existing student (excluding password from update)
-        const { password: _, ...updateData } = studentData;
+        const { password: passwordToRemove, ...updateData } = studentData;
         result = await supabase
           .from('students')
           .update(updateData)
@@ -303,7 +304,7 @@ export default function StudentManagement({ principalId, schoolId, teacherId }: 
       }
 
       // Extract data from worksheet
-      const jsonData: any[] = [];
+      const jsonData: ExcelRowData[] = [];
       const headers: string[] = [];
       
       // Get headers from the first row
@@ -316,7 +317,7 @@ export default function StudentManagement({ principalId, schoolId, teacherId }: 
       worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
         if (rowNumber === 1) return; // Skip header row
         
-        const rowData: any = {};
+        const rowData: ExcelRowData = {};
         row.eachCell((cell, colNumber) => {
           const header = headers[colNumber];
           if (header) {
@@ -380,7 +381,7 @@ export default function StudentManagement({ principalId, schoolId, teacherId }: 
           studentsToUpload.push(studentData);
           passwordList.push(`${row['Name'].trim()}: ${uniquePassword}`);
         } catch (passwordError) {
-          errors.push(`Row ${i + 2}: Failed to generate unique password`);
+          errors.push(`Row ${i + 2}: Failed to generate unique password ${passwordError}`);
         }
       }
 
