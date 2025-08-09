@@ -19,7 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { v4 as uuidv4 } from 'uuid';
 
 interface StudentManagementProps {
@@ -37,6 +37,7 @@ interface Student {
   section: string;
   parent_email: string;
   parent_phone: string;
+  password: string;
   status: string;
   principle_id: string;
   school_id: string;
@@ -63,6 +64,50 @@ export default function StudentManagement({ principalId, schoolId, teacherId }: 
 
   const generateStudentId = () => {
     return `STU${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+  };
+
+  const generatePassword = () => {
+    // Generate a secure password with 8 characters: 4 letters + 4 numbers
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()';
+    const numbers = '0123456789';
+    
+    let password = '';
+    
+    // Add 4 random letters
+    for (let i = 0; i < 4; i++) {
+      password += letters.charAt(Math.floor(Math.random() * letters.length));
+    }
+    
+    // Add 4 random numbers
+    for (let i = 0; i < 4; i++) {
+      password += numbers.charAt(Math.floor(Math.random() * numbers.length));
+    }
+    
+    // Shuffle the password to mix letters and numbers
+    return password.split('').sort(() => Math.random() - 0.5).join('');
+  };
+
+  const ensureUniquePassword = async (password: string): Promise<string> => {
+    let uniquePassword = password;
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    while (attempts < maxAttempts) {
+      const { data: existingStudent } = await supabase
+        .from('students')
+        .select('id')
+        .eq('password', uniquePassword)
+        .single();
+
+      if (!existingStudent) {
+        return uniquePassword;
+      }
+
+      uniquePassword = generatePassword();
+      attempts++;
+    }
+
+    throw new Error('Unable to generate unique password after multiple attempts');
   };
 
   useEffect(() => {
@@ -150,6 +195,13 @@ export default function StudentManagement({ principalId, schoolId, teacherId }: 
         }
       }
 
+      // Generate unique password for new students or keep existing for edits
+      let password = editingStudent?.password;
+      if (!editingStudent) {
+        const newPassword = generatePassword();
+        password = await ensureUniquePassword(newPassword);
+      }
+
       const studentData = {
         student_id: studentId,
         name: name.trim(),
@@ -158,6 +210,7 @@ export default function StudentManagement({ principalId, schoolId, teacherId }: 
         section: (formData.get('section') as string)?.trim() || '',
         parent_email: parentEmail.trim(),
         parent_phone: (formData.get('parent_phone') as string)?.trim() || '',
+        password: password,
         status: 'active',
         principle_id: principalId,
         school_id: schoolId,
@@ -175,10 +228,11 @@ export default function StudentManagement({ principalId, schoolId, teacherId }: 
           { ...studentData, id: editingStudent.id }
         );
         
-        // Update existing student
+        // Update existing student (excluding password from update)
+        const { password: _, ...updateData } = studentData;
         result = await supabase
           .from('students')
-          .update(studentData)
+          .update(updateData)
           .eq('id', editingStudent.id)
           .select();
       } else {
@@ -194,7 +248,7 @@ export default function StudentManagement({ principalId, schoolId, teacherId }: 
         
         // Provide more specific error messages
         if (result.error.code === '23505') {
-          alert("A student with this ID already exists. Please try again.");
+          alert("A student with this ID or password already exists. Please try again.");
         } else if (result.error.code === '23502') {
           alert("Missing required field. Please check all required fields are filled.");
         } else if (result.error.code === '23503') {
@@ -208,11 +262,20 @@ export default function StudentManagement({ principalId, schoolId, teacherId }: 
       setIsOpen(false);
       setEditingStudent(null);
       await fetchStudents();
-      alert(editingStudent ? "Student updated successfully!" : "Student added successfully!");
+      
+      if (!editingStudent && password) {
+        alert(`Student added successfully!\nGenerated Password: ${password}\nPlease save this password securely.`);
+      } else {
+        alert("Student updated successfully!");
+      }
       
     } catch (err) {
       console.log("Unexpected error:", err);
-      alert("An unexpected error occurred while saving the student");
+      if (err instanceof Error && err.message.includes('unique password')) {
+        alert("Unable to generate a unique password. Please try again.");
+      } else {
+        alert("An unexpected error occurred while saving the student");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -225,78 +288,140 @@ export default function StudentManagement({ principalId, schoolId, teacherId }: 
     setIsLoading(true);
     
     try {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const data = new Uint8Array(e.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-          const jsonData = XLSX.utils.sheet_to_json<StudentExcelRow>(worksheet);
+      // Read file as ArrayBuffer
+      const arrayBuffer = await file.arrayBuffer();
+      
+      // Create ExcelJS workbook and load data
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(arrayBuffer);
+      
+      // Get first worksheet
+      const worksheet = workbook.getWorksheet(1);
+      if (!worksheet) {
+        alert("No worksheet found in the Excel file");
+        return;
+      }
 
-          if (!jsonData || jsonData.length === 0) {
-            alert("No data found in the Excel file");
-            return;
+      // Extract data from worksheet
+      const jsonData: any[] = [];
+      const headers: string[] = [];
+      
+      // Get headers from the first row
+      const firstRow = worksheet.getRow(1);
+      firstRow.eachCell((cell, colNumber) => {
+        headers[colNumber] = cell.value?.toString() || '';
+      });
+
+      // Process data rows (starting from row 2)
+      worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+        if (rowNumber === 1) return; // Skip header row
+        
+        const rowData: any = {};
+        row.eachCell((cell, colNumber) => {
+          const header = headers[colNumber];
+          if (header) {
+            rowData[header] = cell.value?.toString() || '';
           }
-
-          // Validate and prepare data
-          const studentsToUpload = [];
-          const errors = [];
-          
-          for (let i = 0; i < jsonData.length; i++) {
-            const row = jsonData[i];
-            
-            if (!row['Name']?.trim() || !row['Class']?.trim() || !row['Parent Email']?.trim()) {
-              errors.push(`Row ${i + 2}: Missing required fields (Name, Class, or Parent Email)`);
-              continue;
-            }
-            
-            studentsToUpload.push({
-              id: uuidv4(),
-              student_id: generateStudentId(),
-              name: row['Name'].trim(),
-              roll_no: row['Roll No']?.trim() || '',
-              class: row['Class'].trim(),
-              section: row['Section']?.trim() || '',
-              parent_email: row['Parent Email'].trim(),
-              parent_phone: row['Parent Phone']?.trim() || '',
-              status: 'active',
-              principle_id: principalId,
-              school_id: schoolId,
-              teacher_id: teacherId,
-              is_final_submitted: false,
-            });
-          }
-
-          if (errors.length > 0) {
-            alert(`Found ${errors.length} errors:\n${errors.join('\n')}`);
-            if (studentsToUpload.length === 0) return;
-          }
-
-          const { error } = await supabase
-            .from('students')
-            .insert(studentsToUpload);
-
-          if (error) {
-            console.log("Bulk upload error:", error);
-            alert(`Failed to upload students: ${error.message}`);
-            return;
-          }
-
-          alert(`Successfully uploaded ${studentsToUpload.length} students`);
-          await fetchStudents();
-          
-        } catch (err) {
-          console.log("Error processing file:", err);
-          alert("Error processing the Excel file. Please check the format.");
-        } finally {
-          setIsLoading(false);
+        });
+        
+        // Only add if we have at least a name
+        if (rowData['Name']) {
+          jsonData.push(rowData);
         }
-      };
-      reader.readAsArrayBuffer(file);
+      });
+
+      if (!jsonData || jsonData.length === 0) {
+        alert("No valid data found in the Excel file");
+        return;
+      }
+
+      // Validate and prepare data
+      const studentsToUpload = [];
+      const errors = [];
+      const passwordList: string[] = [];
+      
+      for (let i = 0; i < jsonData.length; i++) {
+        const row = jsonData[i];
+        
+        if (!row['Name']?.trim() || !row['Class']?.trim() || !row['Parent Email']?.trim()) {
+          errors.push(`Row ${i + 2}: Missing required fields (Name, Class, or Parent Email)`);
+          continue;
+        }
+        
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(row['Parent Email'].trim())) {
+          errors.push(`Row ${i + 2}: Invalid email format for Parent Email`);
+          continue;
+        }
+
+        // Generate unique password for each student
+        try {
+          const newPassword = generatePassword();
+          const uniquePassword = await ensureUniquePassword(newPassword);
+          
+          const studentData = {
+            id: uuidv4(),
+            student_id: generateStudentId(),
+            name: row['Name'].trim(),
+            roll_no: row['Roll No']?.trim() || '',
+            class: row['Class'].trim(),
+            section: row['Section']?.trim() || '',
+            parent_email: row['Parent Email'].trim(),
+            parent_phone: row['Parent Phone']?.trim() || '',
+            password: uniquePassword,
+            status: 'active',
+            principle_id: principalId,
+            school_id: schoolId,
+            teacher_id: teacherId,
+            is_final_submitted: false,
+          };
+
+          studentsToUpload.push(studentData);
+          passwordList.push(`${row['Name'].trim()}: ${uniquePassword}`);
+        } catch (passwordError) {
+          errors.push(`Row ${i + 2}: Failed to generate unique password`);
+        }
+      }
+
+      if (errors.length > 0) {
+        alert(`Found ${errors.length} errors:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? '\n... and more' : ''}`);
+        if (studentsToUpload.length === 0) return;
+      }
+
+      // Insert students in batches to avoid timeout
+      const batchSize = 100;
+      let successCount = 0;
+      
+      for (let i = 0; i < studentsToUpload.length; i += batchSize) {
+        const batch = studentsToUpload.slice(i, i + batchSize);
+        
+        const { error } = await supabase
+          .from('students')
+          .insert(batch);
+
+        if (error) {
+          console.log("Bulk upload error:", error);
+          alert(`Failed to upload batch starting at row ${i + 2}: ${error.message}`);
+          break;
+        }
+        
+        successCount += batch.length;
+      }
+
+      if (successCount > 0) {
+        const passwordInfo = passwordList.slice(0, successCount).join('\n');
+        alert(`Successfully uploaded ${successCount} students!\n\nGenerated Passwords:\n${passwordInfo}\n\nPlease save these passwords securely.`);
+        await fetchStudents();
+      }
+      
     } catch (err) {
-      console.log("Error reading file:", err);
-      alert("Error reading the file");
+      console.log("Error processing file:", err);
+      alert("Error processing the Excel file. Please check the format and try again.");
+    } finally {
       setIsLoading(false);
+      // Reset file input
+      e.target.value = '';
     }
   };
 
@@ -360,6 +485,38 @@ export default function StudentManagement({ principalId, schoolId, teacherId }: 
     } catch (err) {
       console.log("Unexpected error:", err);
       alert("An unexpected error occurred while removing the student");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRegeneratePassword = async (student: Student) => {
+    const confirmed = confirm(`Are you sure you want to regenerate password for ${student.name}?`);
+    if (!confirmed) return;
+    
+    setIsLoading(true);
+    
+    try {
+      const newPassword = generatePassword();
+      const uniquePassword = await ensureUniquePassword(newPassword);
+      
+      const { error } = await supabase
+        .from('students')
+        .update({ password: uniquePassword })
+        .eq('id', student.id);
+        
+      if (error) {
+        console.log("Password regeneration error:", error);
+        alert(`Failed to regenerate password: ${error.message}`);
+        return;
+      }
+      
+      await fetchStudents();
+      alert(`New password generated for ${student.name}: ${uniquePassword}\nPlease save this password securely.`);
+      
+    } catch (err) {
+      console.log("Unexpected error:", err);
+      alert("An unexpected error occurred while regenerating the password");
     } finally {
       setIsLoading(false);
     }
@@ -438,6 +595,12 @@ export default function StudentManagement({ principalId, schoolId, teacherId }: 
                     />
                   </div>
                 </div>
+                {editingStudent && (
+                  <div className="bg-gray-800 p-3 rounded">
+                    <label className="text-gray-300">Current Password: </label>
+                    <span className="text-yellow-400 font-mono">{editingStudent.password}</span>
+                  </div>
+                )}
                 <Button 
                   type="submit" 
                   disabled={isLoading}
@@ -475,6 +638,7 @@ export default function StudentManagement({ principalId, schoolId, teacherId }: 
               <TableHead className="text-gray-300">Roll No</TableHead>
               <TableHead className="text-gray-300">Parent Email</TableHead>
               <TableHead className="text-gray-300">Parent Phone</TableHead>
+              <TableHead className="text-gray-300">Password</TableHead>
               <TableHead className="text-gray-300">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -488,6 +652,7 @@ export default function StudentManagement({ principalId, schoolId, teacherId }: 
                 <TableCell className="text-gray-300">{student.roll_no}</TableCell>
                 <TableCell className="text-gray-300">{student.parent_email}</TableCell>
                 <TableCell className="text-gray-300">{student.parent_phone}</TableCell>
+                <TableCell className="text-yellow-400 font-mono">{student.password}</TableCell>
                 <TableCell>
                   <div className="flex gap-2">
                     <Button
@@ -501,6 +666,15 @@ export default function StudentManagement({ principalId, schoolId, teacherId }: 
                       className="border-gray-700 text-gray-300 hover:bg-gray-700 disabled:opacity-50"
                     >
                       Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRegeneratePassword(student)}
+                      disabled={isFinalSubmitted || isLoading}
+                      className="border-yellow-700 text-yellow-400 hover:bg-yellow-900 disabled:opacity-50"
+                    >
+                      Reset Pwd
                     </Button>
                     <Button
                       variant="destructive"

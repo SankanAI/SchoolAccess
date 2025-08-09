@@ -86,7 +86,7 @@ export default function TeacherLoginUI() {
       router.push('/Teacher/Dashboard')
       
     } catch (err) {
-      console.error('Unexpected error during login:', err)
+      console.log('Unexpected error during login:', err)
       showToast('Unexpected Error', 'An unexpected error occurred', 'destructive')
     } finally {
       setLoading(false)

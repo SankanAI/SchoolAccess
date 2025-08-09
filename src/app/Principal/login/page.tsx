@@ -109,7 +109,7 @@ export default function PrincipalLogin() {
       })
 
       showToast('Success', 'Login successful', 'default')
-      router.push(`/SchoolComponent/TeacherRegistrationForm?principalId=${principalData.id}&schoolId=${schoolData.id}`)
+      router.push(`/Principal/Dashboard/TeacherRegistration?principalId=${principalData.id}&schoolId=${schoolData.id}`)
 
     } catch (err) {
       console.error('Login error:', err)

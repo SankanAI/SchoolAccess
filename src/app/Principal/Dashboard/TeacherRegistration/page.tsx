@@ -28,7 +28,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { v4 as uuidv4 } from 'uuid';
 import { Eye, EyeOff } from 'lucide-react';
 import Cookies from 'js-cookie';
@@ -313,12 +313,48 @@ export default function TeacherRegistrationPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const data = new Uint8Array(e.target?.result as ArrayBuffer);
-      const workbook = XLSX.read(data, { type: 'array' });
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet) as Partial<Teacher>[];
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(arrayBuffer);
+      
+      const worksheet = workbook.getWorksheet(1);
+      if (!worksheet) {
+        alert("No worksheet found in the Excel file");
+        return;
+      }
+
+      const jsonData: Partial<Teacher>[] = [];
+      const headerRow = worksheet.getRow(1);
+      const headers: string[] = [];
+      
+      // Get headers from first row
+      headerRow.eachCell((cell, colNumber) => {
+        headers[colNumber] = cell.value?.toString() || '';
+      });
+
+      // Process data rows (starting from row 2)
+      worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+        if (rowNumber === 1) return; // Skip header row
+        
+        const teacherData: any = {};
+        row.eachCell((cell, colNumber) => {
+          const header = headers[colNumber];
+          if (header) {
+            teacherData[header.toLowerCase()] = cell.value?.toString() || '';
+          }
+        });
+        
+        // Only add if we have at least a name
+        if (teacherData.name) {
+          jsonData.push(teacherData);
+        }
+      });
+
+      if (jsonData.length === 0) {
+        alert("No valid teacher data found in the Excel file");
+        return;
+      }
 
       const teachersToUpload = jsonData.map(teacher => ({
         id: uuidv4(),
@@ -336,6 +372,7 @@ export default function TeacherRegistrationPage() {
 
       if (error) {
         alert("Failed to upload teachers");
+        console.error("Upload error:", error);
         return;
       }
 
@@ -348,10 +385,12 @@ export default function TeacherRegistrationPage() {
         );
       }
 
-      alert("Teachers uploaded successfully");
+      alert(`${teachersToUpload.length} teachers uploaded successfully`);
       fetchTeachers();
-    };
-    reader.readAsArrayBuffer(file);
+    } catch (error) {
+      console.error("Error processing Excel file:", error);
+      alert("Error processing Excel file. Please check the file format and try again.");
+    }
   };
 
   const handleFinalSubmit = async () => {

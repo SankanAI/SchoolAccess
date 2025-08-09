@@ -35,7 +35,6 @@ interface PrincipalFormData {
 export default function PrincipalRegistrationForm() {
   const [output, setOutput] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [authUser, setAuthUser] = useState<string>('');
   const AlwaysFalse: boolean = false;
   const router = useRouter();
   const supabase = createClientComponentClient();
@@ -143,7 +142,7 @@ export default function PrincipalRegistrationForm() {
             </CardDescription>
             {output && (
               <Alert variant={output.includes('error') ? 'destructive' : 'default'} className="bg-gray-800 border-gray-700">
-                <AlertTitle className="text-white">{output.includes('error') ? 'Error' : 'Success'}</AlertTitle>
+                <AlertTitle className="text-white">{"Some News"}</AlertTitle>
                 <AlertDescription className="text-gray-300">{output}</AlertDescription>
               </Alert>
             )}
